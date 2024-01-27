@@ -1,0 +1,25 @@
+Spécifications des fonctionnalités de l'application de scan de tickets de supermarché
+
+
+Objectifs :
+
+- Permettre à l'utilisateur de scanner son ticket ou les produits du supermarché.
+- Avoir un visuel sur les prix à chaque achats, et savoir si il y a eu une hausse ou baisse du dit produit.
+- Pouvoir utiliser le scanner de l'application pour faire une conversion de prix (ex: Kr vers €).
+
+
+Fonctionnalités principales :
+
+- Capture d'image: L'utilisateur peut prendre en photo un produit avec son téléphone ou scanner le ticket de caisse
+afin de voir la description ainsi que la fluctuation des prixs de ce dit produit.
+
+- Extraction de données: L'application pourra extraire les données comme le nom du produit et le prix au moment de l'achat.
+
+- Stockage des données: L'application utilisera une base de données de type SQLlite au début afin de stocker les données
+mais lors de futurs évolutions de l'application, la base de données changera.
+
+- Visualisation des données: Le projet utilisera une bibliothèque Matplotlib ou Plotly pour créer des graphiques représentant la fluctuation des prix de chaque aliment.
+
+- Interface utilisateur: L'interface sera très simple et homogène et evoluera dans le temps avec l'application.
+
+

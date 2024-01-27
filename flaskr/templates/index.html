@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="container d-flex flex-column align-items-center mt-4">
+        <form id="receiptForm" action="/scan_receipt" method="post" enctype="multipart/form-data">
+            <div class="form-group d-flex align-items-center">
+                <label for="file" class="mr-2">Select File:</label>
+                <input type="file" class="form-control-file" name="file" id="file" accept=".jpg, .jpeg, .png">
+            </div>
+
+            <div class="form-group">
+                <label for="city">City:</label>
+                <input type="text" class="form-control" name="city" id="city">
+            </div>
+
+            <div class="form-group">
+                <label for="shop">Shop:</label>
+                <input type="text" class="form-control" name="shop" id="shop">
+            </div>
+
+            <button id="submit-button" type="submit" class="btn btn-success mt-2">Add</button>
+        </form>
+    </div>
+
+    <div id="message" class="mt-4"></div>
+
+    <div class="tickets-container mt-4">
+        <h2>Stored Tickets</h2>
+        {% for receipt in stored_tickets %}
+            <div class="card mt-2">
+                <div class="card-body d-flex justify-content-between align-items-start"> <!-- Use justify-content-between -->
+                    <div>
+                        <span>Shop Name: {{ receipt.shop_name }}</span>
+                        <span>Ticket #{{ receipt.id }}</span>
+                        <span>{{ receipt.receipt_date }}</span>
+                        <span>{{ receipt.receipt_amount }} Kr</span>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('receipt_details', receipt_id=receipt.id) }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-info-circle"></i>
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeTicket({{ receipt.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function removeTicket(ticketId) {
+            var confirmDelete = window.confirm("Are you sure you want to remove this ticket?");
+
+            if (confirmDelete) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/remove_ticket', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        console.log(xhr.responseText);
+                        location.reload();
+                    }
+                };
+                xhr.send('ticket_id=' + ticketId);
+            } else {
+                console.log('Ticket removal canceled.');
+            }
+        }
+    </script>
+{% endblock %}

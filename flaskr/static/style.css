@@ -1,0 +1,41 @@
+/* styles.css */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    margin-top: 30px;
+}
+
+form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.form-label {
+    font-weight: bold;
+}
+
+.input-group {
+    display: grid;
+    gap: 5px;
+}
+
+#message {
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.tickets-container a {
+    text-decoration: none;
+}
+
+.tickets-container .card:hover {
+    background-color: #f4f4f4;
+}
+

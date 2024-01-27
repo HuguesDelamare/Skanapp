@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='receipt_details.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js" integrity="sha256-oP6HI/t1A6fUCwYO9gYvLIsI9k3JNpL4+46DGn5IuZI=" crossorigin="anonymous"></script>
+    <title>Receipt Details</title>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="container-fluid col-1 me-2 ms-2 mb-auto">
+                <button type="button" class="btn btn-danger mt-3" onclick="goBack()">
+                    Go Back
+                </button>
+                <button type="button" class="btn btn-warning mt-3" onclick="#">
+                    <i class="fas fa-edit"></i>
+                    Edit
+                </button>
+            </div>
+            
+            <div class="container-fluid col ml-auto">
+                <section class="receipt-info mt-4">
+                    <h2>Receipt Info</h2>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label>Shop Name:</label>
+                            <p>{{ receipt.shop_name }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label>Shop City:</label>
+                            <p>{{ receipt.shop_city }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label>Receipt Date:</label>
+                            <p>{{ receipt.receipt_date }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label>Receipt Amount:</label>
+                            <p>{{ receipt.receipt_amount }}</p>
+                        </div>
+                    </div>
+                </section>
+        
+                <section class="products-list mt-4">
+                    <h2>Products</h2>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product, receipt_product in products %}
+                                <tr>
+                                    <td>{{ product.name }}</td>
+                                    <td>{{ product.price }}</td>
+                                    <td>{{ receipt_product.quantity }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2" class="text-right"><strong>Total:</strong></td>
+                                <td><strong>{{ receipt.receipt_amount }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </section>
+            </div>
+        </div>
+    </div>
+        
+    <script>
+        function goBack() {
+            window.history.back();
+        }
+    </script>
+</body>
+</html>
