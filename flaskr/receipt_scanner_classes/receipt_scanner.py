@@ -4,19 +4,21 @@ import re
 from PIL import Image
 from io import BytesIO
 import numpy as np
+import matplotlib.pyplot as plt
 
 class ReceiptScanner:
     def __init__(self, image_content):
         # Open the image using PIL
-        self.image = Image.open(BytesIO(image_content))
+        nparr = np.fromstring(image_content, np.uint8)
+        self.image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         # Decode the image using OpenCV
         self.frame = cv2.imdecode(np.frombuffer(image_content, np.uint8), -1)
 
         self.custom_config = r'--oem 3 --psm 6 -l swe'
         self.price_pattern = r'\b\d+[.,]?\d*\b'
-        self.quantity_pattern = r'(\d+)\s?(st\.?|stk\.?|pcs\.?)'  # Regex to find quantity pattern like "2st"
-        self.remove_pattern = r'\*\d+[\.,]?\s?\d+'  # Regex to find pattern like "*19,60"
+        self.quantity_pattern = r'(\d+)\s?(st\.?|stk\.?|pcs\.?)\*?\b(?!\s*(g|kg|l))'
+        self.remove_pattern = r'\*\d+[\.,]?\s?\d+'
         self.ignore_words = ["Extrapris", "+PANT ALUMINIUMBURK", "Rabat", "+PANT ENG PET"]
 
         # Configuration du chemin vers Tesseract OCR
@@ -24,19 +26,23 @@ class ReceiptScanner:
 
     def preprocess_image(self):
         # Convert the image to gray scale
-        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(self.frame, (5, 5), 0)
+        gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+
+        # Equalize histogram
+        gray = cv2.equalizeHist(gray)
 
         # Performing OTSU threshold
         ret, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
 
         # Specify structure shape and kernel size.
-        rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (18, 18))
+        rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
 
         # Applying dilation on the threshold image
         dilation = cv2.dilate(thresh1, rect_kernel, iterations = 1)
 
         # Finding contours
-        contours, hierarchy = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv2.findContours(dilation, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         # Creating a copy of image
         im2 = gray.copy()
@@ -53,7 +59,6 @@ class ReceiptScanner:
 
         return resized_img
 
-
     def process_receipt(self):
         # Preprocess the image
         preprocessed_image = self.preprocess_image()
@@ -63,19 +68,17 @@ class ReceiptScanner:
         start_line, end_line = self._find_start_end_lines(lines)
 
         for line in lines[start_line + 1:end_line]:
-            product_name, price, quantity = self._extract_product_info(line)
-            if product_name and price:
-                print(f"{product_name} | Price: {price} | Quantity: {quantity}")
+            self._extract_product_info(line)
 
     def _find_start_end_lines(self, lines):
         start_line = -1
         end_line = len(lines) - 1
 
         for idx, line in enumerate(lines):
-            if "Start Sjalvscanning" in line:
+            if "Start Självscanning" in line:
                 start_line = idx
                 print(f"Found start line at index {idx}: {line}")
-            if "seeeeecess Slut SJalvscanning SRSUSseanee" in line and start_line != -1:
+            if "Slut SJälvscanning" in line and start_line != -1:
                 end_line = idx
                 print(f"Found end line at index {idx}: {line}")
                 break
@@ -85,15 +88,16 @@ class ReceiptScanner:
     def _extract_product_info(self, line):
         product_name = ""
         price = ""
-        quantity = 1  # Default quantity is 1
+        quantity = 1
 
         # Split the line by spaces
         parts = line.split()
 
         if len(parts) > 1:
-            # The last part should be the price
             try:
-                price = float(parts[-1].replace(',', '.'))
+                # Parse the raw price and format it with two digits after the decimal point
+                raw_price = parts[-1].replace(',', '.')
+                price = '{:.2f}'.format(float(raw_price))
             except ValueError:
                 return None, None, None  # Skip if price is not a valid float
 
@@ -112,7 +116,6 @@ class ReceiptScanner:
 
         return product_name, price, quantity
 
-
     def extract_products_info(self):
         # Assuming you want to return the products_info as a list
         products_info = []
@@ -122,7 +125,7 @@ class ReceiptScanner:
 
         for line in lines[start_line + 1:end_line]:
             product_name, price, quantity = self._extract_product_info(line)
-            if product_name and price:
+            if product_name and price and quantity:
                 products_info.append({'product_name': product_name, 'price': price, 'quantity': quantity})
 
         return products_info
