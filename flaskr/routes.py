@@ -33,7 +33,6 @@ def scan_receipt():
     try:
         new_receipt = Receipts(shop_name=shop, shop_city=city, receipt_date=datetime.utcnow(), receipt_amount=0.0)
         db.session.add(new_receipt)
-        db.session.commit()
 
         total_amount = 0.0
 
@@ -48,20 +47,19 @@ def scan_receipt():
             if existing_product is None:
                 new_product = Product(name=product_name, price=price)
                 db.session.add(new_product)
-                db.session.commit()
+                db.session.flush()
             else:
                 new_product = existing_product
 
             # Associate the product with the receipt using foreign keys
             receipt_product = ReceiptProducts(receipt_id=new_receipt.id, product_id=new_product.id, quantity=quantity)
             db.session.add(receipt_product)
-            db.session.commit()
 
             # Update the total amount
             total_amount += float(price) * int(quantity)
 
         # Update the receipt_amount field
-        new_receipt.receipt_amount = total_amount
+        new_receipt.receipt_amount = round(total_amount, 2)
         db.session.commit()
 
         # Use PRG pattern: redirect to the index page after a successful submission
@@ -83,6 +81,10 @@ def receipt_details(receipt_id):
         join(ReceiptProducts, ReceiptProducts.product_id == Product.id).\
         filter(ReceiptProducts.receipt_id == receipt_id).all()
 
+    # Changing the format of the price to display it with two digits after the decimal point
+    for product in products:
+        product.Product.price = '{:.2f}'.format(product.Product.price)
+        
     return render_template('receipt_details.html', receipt=receipt, products=products)
 
 
@@ -103,4 +105,5 @@ def remove_ticket():
         stored_tickets = Receipts.query.all()
         return render_template('index.html', stored_tickets=stored_tickets)
     except Exception as e:
+        db.session.rollback()
         return f'Failed to delete the receipt. {str(e)}'
