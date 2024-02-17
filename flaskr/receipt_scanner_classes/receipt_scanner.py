@@ -1,90 +1,55 @@
-import cv2
+import fitz  # PyMuPDF
+import io
+from PIL import Image
+import os
 import pytesseract
 import re
-from PIL import Image
-from io import BytesIO
-import numpy as np
-import matplotlib.pyplot as plt
+from datetime import datetime
 
 class ReceiptScanner:
-    def __init__(self, image_content):
-        # Open the image using PIL
-        nparr = np.fromstring(image_content, np.uint8)
-        self.image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    def __init__(self, pdf_content):
+        self.pdf_content = pdf_content
+        current_directory = os.path.dirname(os.path.realpath(__file__))
+        self.uploads_folder = os.path.join(current_directory, '..', 'uploads')
+        self.save_pdf_as_images(self.pdf_content)
 
-        # Decode the image using OpenCV
-        self.frame = cv2.imdecode(np.frombuffer(image_content, np.uint8), -1)
+        # Configuration du chemin vers Tesseract OCR
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        self.custom_config = r'--oem 3 --psm 6 -l fra'  # Configuration de Tesseract OCR
 
-        self.custom_config = r'--oem 3 --psm 6 -l swe'
         self.price_pattern = r'\b\d+[.,]?\d*\b'
         self.quantity_pattern = r'(\d+)\s?(st\.?|stk\.?|pcs\.?)\*?\b(?!\s*(g|kg|l))'
         self.remove_pattern = r'\*\d+[\.,]?\s?\d+'
         self.ignore_words = ["Extrapris", "+PANT ALUMINIUMBURK", "Rabat", "+PANT ENG PET"]
 
-        # Configuration du chemin vers Tesseract OCR
-        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    def save_pdf_as_images(self, pdf_content):
+        try:
+            # Convert PDF to images
+            pdf = fitz.open(stream=pdf_content, filetype="pdf")
+            zoom_x = 2.0  
+            zoom_y = 2.0
+            mat = fitz.Matrix(zoom_x, zoom_y)  # zoom factor 2 in each dimension
 
-    def preprocess_image(self):
-        # Convert the image to gray scale
-        blurred = cv2.GaussianBlur(self.frame, (5, 5), 0)
-        gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+            # Get the current date
+            current_date = datetime.now().strftime('%d-%m-%Y')
 
-        # Equalize histogram
-        gray = cv2.equalizeHist(gray)
+            for i in range(len(pdf)):
+                # Read the page
+                page = pdf[i]
+                pix = page.get_pixmap(matrix=mat)  # use 'mat' instead of the default value
 
-        # Performing OTSU threshold
-        ret, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
+                # Construct the image file path with the current date and index
+                image_path = os.path.join(self.uploads_folder, f'{current_date}_{i}.png')
+                print("Saving image to:", image_path)
 
-        # Specify structure shape and kernel size.
-        rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+                # Convert to PIL image and save
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                img.save(image_path)
 
-        # Applying dilation on the threshold image
-        dilation = cv2.dilate(thresh1, rect_kernel, iterations = 1)
-
-        # Finding contours
-        contours, hierarchy = cv2.findContours(dilation, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Creating a copy of image
-        im2 = gray.copy()
-
-        # A bounding box is created around the contour area.
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-
-            # Drawing a rectangle on copied image
-            rect = cv2.rectangle(im2, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        # Resizing the image
-        resized_img = cv2.resize(im2, (700, 800))
-
-        return resized_img
-
-    def process_receipt(self):
-        # Preprocess the image
-        preprocessed_image = self.preprocess_image()
-
-        text = pytesseract.image_to_string(preprocessed_image, config=self.custom_config)
-        lines = text.split('\n')
-        start_line, end_line = self._find_start_end_lines(lines)
-
-        for line in lines[start_line + 1:end_line]:
-            self._extract_product_info(line)
-
-    def _find_start_end_lines(self, lines):
-        start_line = -1
-        end_line = len(lines) - 1
-
-        for idx, line in enumerate(lines):
-            if "Start Självscanning" in line:
-                start_line = idx
-                print(f"Found start line at index {idx}: {line}")
-            if "Slut SJälvscanning" in line and start_line != -1:
-                end_line = idx
-                print(f"Found end line at index {idx}: {line}")
-                break
-
-        return start_line, end_line
-
+            print(f"Saved {len(pdf)} images in {self.uploads_folder}")
+        except Exception as e:
+            print(f"Error: {e}")
+    
     def _extract_product_info(self, line):
         product_name = ""
         price = ""
@@ -116,16 +81,55 @@ class ReceiptScanner:
 
         return product_name, price, quantity
 
-    def extract_products_info(self):
-        # Assuming you want to return the products_info as a list
-        products_info = []
-        text = pytesseract.image_to_string(self.image, config=self.custom_config)
-        lines = text.split('\n')
-        start_line, end_line = self._find_start_end_lines(lines)
+    def read_images_with_ocr(self):
+        try:
+            # Get the number of images
+            num_images = len([name for name in os.listdir(self.uploads_folder) if os.path.isfile(os.path.join(self.uploads_folder, name))])
+            
+            for i in range(num_images):
+                image_path = os.path.join(self.uploads_folder, 'image_{}.png'.format(i))
+                text = pytesseract.image_to_string(Image.open(image_path), config=self.custom_config)
+                
+                # Split the text into lines
+                lines = text.split('\n')
+                
+                # Initialize a flag to indicate whether we are between "Start Självscanning" and "Slut Självscanning"
+                start_scanning = False
+                
+                for line in lines:
+                    if "Start Självscanning" in line:
+                        start_scanning = True
+                    elif "Slut Självscanning" in line:
+                        start_scanning = False
+                    
+                    # Only print the line if we are between "Start Självscanning" and "Slut Självscanning"
+                    if start_scanning:
+                        print(line)
+        except Exception as e:
+            print("Error: {}".format(e))
 
-        for line in lines[start_line + 1:end_line]:
-            product_name, price, quantity = self._extract_product_info(line)
-            if product_name and price and quantity:
-                products_info.append({'product_name': product_name, 'price': price, 'quantity': quantity})
+    def extract_products_info(self):
+        products_info = []
+        for i in range(len(self.pdf_content)):
+            image_path = os.path.join(self.uploads_folder, 'image_{}.png'.format(i))
+            text = pytesseract.image_to_string(Image.open(image_path), config=self.custom_config)
+            
+            # Split the text into lines
+            lines = text.split('\n')
+            
+            # Initialize a flag to indicate whether we are between "Start Självscanning" and "Slut Självscanning"
+            start_scanning = False
+            
+            for line in lines:
+                if "Start Självscanning" in line:
+                    start_scanning = True
+                elif "Slut Självscanning" in line:
+                    start_scanning = False
+                
+                # Only process the line if we are between "Start Självscanning" and "Slut Självscanning"
+                if start_scanning:
+                    product_name, price, quantity = self._extract_product_info(line)
+                    if product_name and price and quantity:
+                        products_info.append({'product_name': product_name, 'price': price, 'quantity': quantity})
 
         return products_info
